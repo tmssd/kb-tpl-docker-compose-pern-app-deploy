@@ -69,6 +69,11 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     command: --interval 30 --cleanup ${PROJECT_NAME}-fe ${PROJECT_NAME}-be-app ${PROJECT_NAME-be-postgres
+    depends_on:
+      - api
+      - app
+      - postgres
+      - redis
 
 networks:
   web:
