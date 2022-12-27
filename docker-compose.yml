@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  app:
+    container_name: ${PROJECT_NAME}-fe
+    image: index.docker.io/tmssd/${PROJECT_NAME}-fe:latest
+    restart: always
+    networks:
+      - web
+    depends_on:
+      - api
+      - postgres
+      - redis
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`${PROJECT_NAME}.${DOMAIN_NAME}`)"
+      - "traefik.http.routers.app.tls=true"
+      - "traefik.http.routers.app.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.app.entrypoints=websecure"
+  api:
+    container_name: ${PROJECT_NAME}-be-app
+    image: index.docker.io/tmssd/${PROJECT_NAME}-be-app:latest
+    restart: always
+    env_file:
+      - .env
+    command: npm start
+    networks:
+      - web
+      - backend
+    ports:
+      - "3000:3000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=(Host(`${PROJECT_NAME}.${DOMAIN_NAME}`) && PathPrefix(`/api`))"
+      - "traefik.http.routers.api.tls=true"
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      POSTGRES_URI: postgres://admin:password@postgres:5432/smart-brain
+      REDIS_URI: redis://redis:6379
+  postgres:
+    container_name: ${PROJECT_NAME}-be-postgres
+    image: index.docker.io/tmssd/${PROJECT_NAME}-be-postgres:latest
+    restart: always
+    volumes:
+      - ./db-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_URL: postgres://admin:password@localhost:5432/smart-brain
+      POSTGRES_DB: smart-brain
+      POSTGRES_HOST: postgres
+    networks:
+      - backend
+    ports:
+      - "5432:5432"
+  redis:
+    container_name: ${PROJECT_NAME}-be-redis
+    image: redis
+    restart: always
+    networks:
+      - backend
+    ports:
+      - "6379:6379"
+  watchtower:
+    image: containrrr/watchtower
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 30 --cleanup ${PROJECT_NAME}-fe ${PROJECT_NAME}-be-app ${PROJECT_NAME-be-postgres
+
+networks:
+  web:
+    external: true
+  backend:
+    driver: bridge
